@@ -1,14 +1,15 @@
+import sys
+import rpyc
 import threading
 import datetime
 date_time = datetime.datetime.now()
-import rpyc
-import sys
 
 # global variables
 generals = {}
 listofPorts = {}
 primary_general_id = 0
 
+# general class
 class General(threading.Thread):
     def __init__(self, id, type, majority, state, server):
         threading.Thread.__init__(self, target=server.start)
@@ -17,6 +18,7 @@ class General(threading.Thread):
         self.majority = majority
         self.state = state
 
+    # primary general broadcast message to all other secondary generals
     def broadcastOrder(self, order):
         self.majority = order
         secondary_general_ids = list(generals.keys())[1:]
@@ -27,6 +29,7 @@ class General(threading.Thread):
                 conn = rpyc.connect('localhost', port)
                 conn.root.exposed_order(secondary_general_id, order)
 
+    # verify messages
     def verifyOrder(self):
         ids = list(generals.keys())
         answers_from_secondaries = []
@@ -45,16 +48,16 @@ class General(threading.Thread):
         return answers_from_secondaries, F_count
 
     def return_undefined_state(self, default_state):
-        self.majority = default_state
-        secondary_general_id = self.id + 1
-        if secondary_general_id <= len(generals) + 1:
+        self.majority = default_state 
+        secondary_general_ids = list(generals.keys())[1:]
+        for secondary_general_id in secondary_general_ids:
             if secondary_general_id in listofPorts and secondary_general_id in generals:
                 # connecting to thread server
                 port = listofPorts[secondary_general_id]
                 conn = rpyc.connect('localhost', port)
                 conn.root.exposed_order(secondary_general_id, default_state)
 
-
+# service for generals
 class Service(rpyc.Service):
     def exposed_order(self, id, order):
         generals[id].majority = order
@@ -65,13 +68,15 @@ class Service(rpyc.Service):
         else:
             return True, generals[id].majority
 
+# sending order message to primary
 def sendtheorder(order):
     if len(generals) <= 3:
         failed_generals = [gn for gn in generals.values() if gn.state == "F"]
         generals[primary_general_id].majority = order
         for g in generals.values():
             print(f"G{g.id}, {g.type}, majority={g.majority}, {g.state}")
-        print(f"Execute order: cannot be determined – not enough generals in the system! {len(failed_generals)} faulty node in the system - {len(generals)-1} out of {len(generals)} quorum not consistent")
+        print(
+            f"Execute order: cannot be determined – not enough generals in the system! {len(failed_generals)} faulty node in the system - {len(generals)-1} out of {len(generals)} quorum not consistent")
     else:
         generals[primary_general_id].majority = order
         generals[primary_general_id].broadcastOrder(order)
@@ -84,16 +89,19 @@ def sendtheorder(order):
             all_answers_from_all_generals_between_messaging.append(answers)
             failed_general_count = failed_general
 
-        shouldDoOrder = all(general_answer == all_answers_from_all_generals_between_messaging[0] for general_answer in all_answers_from_all_generals_between_messaging)
+        shouldDoOrder = all(general_answer == all_answers_from_all_generals_between_messaging[
+                            0] for general_answer in all_answers_from_all_generals_between_messaging)
 
         if shouldDoOrder == True:
             for g in generals.values():
                 print(f"G{g.id}, {g.type}, majority={g.majority}, {g.state}")
             if failed_general_count == 0:
-                print(f"Execute order: {order}! Non-faulty nodes in the system – {len(all_answers_from_all_generals_between_messaging)} out of {len(generals)} quorum suggest {order}")
+                print(
+                    f"Execute order: {order}! Non-faulty nodes in the system – {len(all_answers_from_all_generals_between_messaging)} out of {len(generals)} quorum suggest {order}")
             else:
                 print(f"Execute order: {order}! {failed_general_count} faulty nodes in the system – {len(all_answers_from_all_generals_between_messaging) - failed_general_count} out of {len(generals)} quorum suggest {order}")
     generals[primary_general_id].return_undefined_state("undefined")
+
 
 def deleteGeneral(id):
     if id in generals and generals[id].type != "primary":
@@ -108,16 +116,18 @@ def deleteGeneral(id):
         print("The general is not exist with this id, please try again!")
     printStates()
 
+
 def election(id):
     global primary_general_id
     generals[id].type = "primary"
     primary_general_id = id
 
+
 def add_k_number_of_generals(K):
     last_id = list(generals.keys())[-1] + 1
     last_port = list(listofPorts.keys())[-1] + 1
     for gid in range(K):
-        server = rpyc.utils.server.ThreadedServer(Service, port = last_port)
+        server = rpyc.utils.server.ThreadedServer(Service, port=last_port)
         general = General(last_id, "secondary", "undefined", "NF", server)
         generals[last_id] = general
         generals[last_id].daemon = True
@@ -126,16 +136,17 @@ def add_k_number_of_generals(K):
         last_id += 1
         last_port += 1
 
+
 def createGenerals(N):
     port = 2000
     global primary_general_id
     for gid in range(1, N + 1):
         if gid == 1:
             primary_general_id = gid
-            server = rpyc.utils.server.ThreadedServer(Service, port = port)
+            server = rpyc.utils.server.ThreadedServer(Service, port=port)
             general = General(gid, "primary", "undefined", "NF", server)
         else:
-            server = rpyc.utils.server.ThreadedServer(Service, port = port)
+            server = rpyc.utils.server.ThreadedServer(Service, port=port)
             general = General(gid, "secondary", "undefined", "NF", server)
         generals[gid] = general
         generals[gid].daemon = True
@@ -143,13 +154,16 @@ def createGenerals(N):
         listofPorts[gid] = port
         port += 1
 
+
 def printStates():
     for g in generals.values():
         print(f"G{g.id}, {g.type}, {g.state}")
 
+
 def changeType(id, state):
     if state == "faulty":
         generals[id].state = "F"
+
 
 def main(argument):
     N = int(argument[1])
@@ -158,7 +172,8 @@ def main(argument):
     else:
         createGenerals(N)
         while True:
-            command = input("Enter on of the commands (actual-order, g-state id faulty, g-state, g-kill id, g-add K):").lower().split(" ")
+            command = input(
+                "Enter on of the commands (actual-order, g-state id faulty, g-state, g-kill id, g-add K):").lower().split(" ")
             cmd = command[0]
 
             if cmd == "actual-order":
@@ -177,6 +192,7 @@ def main(argument):
             elif cmd == "g-add":
                 K = int(command[1])
                 add_k_number_of_generals(K)
+
 
 if __name__ == "__main__":
     main(sys.argv)
