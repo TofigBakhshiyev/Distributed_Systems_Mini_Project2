@@ -154,6 +154,13 @@ def createGenerals(N):
         listofPorts[gid] = port
         port += 1
 
+def printGenerals():
+    for g in generals.values():
+        print(f"G{g.id}, {g.type}")
+
+def printStatesAfterFaulty():
+    for g in generals.values():
+        print(f"G{g.id}, {g.state}")
 
 def printStates():
     for g in generals.values():
@@ -184,6 +191,7 @@ def main(argument):
                     id = int(command[1])
                     state = command[2]
                     changeType(id, state)
+                    printStatesAfterFaulty()
                 else:
                     printStates()
             elif cmd == "g-kill":
@@ -192,7 +200,7 @@ def main(argument):
             elif cmd == "g-add":
                 K = int(command[1])
                 add_k_number_of_generals(K)
-
+                printGenerals()
 
 if __name__ == "__main__":
     main(sys.argv)
