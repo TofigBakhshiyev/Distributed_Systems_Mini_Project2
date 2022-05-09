@@ -9,6 +9,52 @@ generals = {}
 listofPorts = {}
 primary_general_id = 0
 
+class General(threading.Thread):
+    def __init__(self, id, type, majority, state, server):
+        threading.Thread.__init__(self, target=server.start)
+        self.id = id
+        self.type = type
+        self.majority = majority
+        self.state = state
+
+    def broadcastOrder(self, order):
+        self.majority = order
+        secondary_general_ids = list(generals.keys())[1:]
+        for secondary_general_id in secondary_general_ids:
+            if secondary_general_id in listofPorts and secondary_general_id in generals:
+                # connecting to thread server
+                port = listofPorts[secondary_general_id]
+                conn = rpyc.connect('localhost', port)
+                conn.root.exposed_order(secondary_general_id, order)
+
+    def verifyOrder(self):
+        ids = list(generals.keys())
+        answers_from_secondaries = []
+        F_count = 0
+        for gid in range(1, len(ids)):
+            if ids[gid] != self.id:
+                port = listofPorts[ids[gid]]
+                conn = rpyc.connect('localhost', port)
+                faulty, answer = conn.root.exposed_verfy_the_order(ids[gid])
+                if faulty != False:
+                    answers_from_secondaries.append(answer)
+                elif faulty == False:
+                    answers_from_secondaries.append(answer)
+                    F_count += 1
+
+        return answers_from_secondaries, F_count
+
+    def return_undefined_state(self, default_state):
+        self.majority = default_state
+        secondary_general_id = self.id + 1
+        if secondary_general_id <= len(generals) + 1:
+            if secondary_general_id in listofPorts and secondary_general_id in generals:
+                # connecting to thread server
+                port = listofPorts[secondary_general_id]
+                conn = rpyc.connect('localhost', port)
+                conn.root.exposed_order(secondary_general_id, default_state)
+
+
 class Service(rpyc.Service):
     def exposed_order(self, id, order):
         generals[id].majority = order
