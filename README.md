@@ -21,4 +21,4 @@ Anton Rudchenko
  - g-add K
 
 #### Example video
-- [Project video](https://github.com/TofigBakhshiyev/Distributed_Systems_Mini_Project2)
+- [Project video](https://drive.google.com/file/d/1Dv5OrhGaxo1Vgt67nIAVJue3Jc5y_Vzc/view?usp=sharing)
